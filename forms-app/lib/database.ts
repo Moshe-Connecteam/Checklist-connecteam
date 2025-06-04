@@ -1,5 +1,5 @@
 import { supabase, Form, FormResponse, UserAnalytics, FormFile } from './supabase'
-import { isValidUUID, getSearchPatternFromSlug } from './utils'
+import { isValidUUID, getSearchPatternFromSlug, extractIdFromSlug } from './utils'
 
 // Forms CRUD operations
 export const createForm = async (userId: string, title: string, description: string = '', formData: any = {}) => {
@@ -32,11 +32,9 @@ export const getUserForms = async (userId: string) => {
 
 // Get form by ID or slug
 export async function getForm(identifier: string): Promise<Form> {
-  console.log('🔍 Getting form by identifier:', identifier)
-  
+  console.log('🔍 Getting form for identifier:', identifier)
   let data, error
 
-  // Check if identifier is a UUID or a slug
   if (isValidUUID(identifier)) {
     console.log('📋 Searching by UUID:', identifier)
     const result = await supabase
@@ -48,16 +46,28 @@ export async function getForm(identifier: string): Promise<Form> {
     error = result.error
   } else {
     console.log('🔗 Searching by slug:', identifier)
-    // Extract short ID from slug and search for forms that start with it
-    const searchPattern = getSearchPatternFromSlug(identifier)
-    console.log('🔍 Search pattern:', searchPattern)
+    // Extract full UUID from slug
+    const extractedId = extractIdFromSlug(identifier)
+    console.log('🔍 Extracted ID from slug:', extractedId)
+    
+    if (!extractedId) {
+      throw new Error('Invalid slug format')
+    }
+
+    // Search by the extracted UUID directly
     const result = await supabase
       .from('forms')
       .select('*')
-      .like('id', searchPattern)
+      .eq('id', extractedId)
       .single()
-    data = result.data
-    error = result.error
+    
+    if (result.error) {
+      error = result.error
+      data = null
+    } else {
+      data = result.data
+      error = null
+    }
   }
 
   if (error) {
@@ -71,6 +81,64 @@ export async function getForm(identifier: string): Promise<Form> {
   }
 
   console.log('✅ Form found:', data.title)
+  return data
+}
+
+// Get form by ID or slug for a specific user (more efficient)
+export async function getUserForm(identifier: string, userId: string): Promise<Form> {
+  console.log('🔍 Getting user form for identifier:', identifier, 'user:', userId)
+  let data, error
+
+  if (isValidUUID(identifier)) {
+    console.log('📋 Searching by UUID:', identifier)
+    const result = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', identifier)
+      .eq('user_id', userId)
+      .single()
+    data = result.data
+    error = result.error
+  } else {
+    console.log('🔗 Searching by slug:', identifier)
+    // Extract full UUID from slug
+    const extractedId = extractIdFromSlug(identifier)
+    console.log('🔍 Extracted ID from slug:', extractedId)
+    
+    if (!extractedId) {
+      console.error('❌ Could not extract ID from slug:', identifier)
+      throw new Error(`Invalid slug format: "${identifier}". Expected format: "title-UUID".`)
+    }
+    
+    // Search by the extracted UUID and user ID directly
+    const result = await supabase
+      .from('forms')
+      .select('*')
+      .eq('id', extractedId)
+      .eq('user_id', userId)
+      .single()
+    
+    if (result.error) {
+      error = result.error
+      data = null
+    } else {
+      data = result.data
+      error = null
+      console.log('✅ Found matching form:', data.title, data.id)
+    }
+  }
+
+  if (error) {
+    console.error('❌ Error fetching user form:', error)
+    throw new Error(`Failed to fetch form: ${error.message}`)
+  }
+
+  if (!data) {
+    console.error('❌ User form not found for identifier:', identifier)
+    throw new Error('Form not found')
+  }
+
+  console.log('✅ User form found:', data.title)
   return data
 }
 

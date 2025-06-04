@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -14,11 +14,22 @@ import { createForm, refreshUserAnalytics, getForm, updateForm } from "../../lib
 
 interface FormField {
   id: string
-  type: "text" | "email" | "textarea" | "select" | "radio" | "checkbox"
+  type: "text" | "email" | "textarea" | "select" | "radio" | "checkbox" | 
+        "number" | "date" | "file" | "image" | "rating" | "location" | 
+        "signature" | "audio" | "slider" | "yesno" | "task" | "scanner" | "imageselection"
   label: string
   placeholder?: string
   required: boolean
   options?: string[]
+  min?: number
+  max?: number
+  step?: number
+  accept?: string // for file types
+  multiple?: boolean // for file uploads and selections
+  rating_type?: "stars" | "hearts" | "thumbs" | "numbers"
+  slider_min?: number
+  slider_max?: number
+  slider_step?: number
 }
 
 interface FormData {
@@ -27,7 +38,22 @@ interface FormData {
   fields: FormField[]
 }
 
-export default function FormBuilderPage() {
+// Loading component to show while suspense is loading
+function FormBuilderLoading() {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading form builder...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Actual form builder component that uses useSearchParams
+function FormBuilderContent() {
   const { user, isLoaded } = useUser()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -95,6 +121,25 @@ export default function FormBuilderPage() {
       select: "Pick your favorite",
       radio: "Choose one option",
       checkbox: "Check if you agree",
+      number: "Enter a number",
+      date: "Select a date",
+      file: "Upload a file",
+      image: "Upload an image",
+      rating: "Rate this item",
+      location: "Choose location",
+      signature: "Your signature",
+      audio: "Record audio",
+      slider: "Select value",
+      yesno: "Yes or No?",
+      task: "Complete this task",
+      scanner: "Scan QR/Barcode",
+      imageselection: "Select from images"
+    }
+
+    // Get today's date in YYYY-MM-DD format for date fields
+    const getTodayDate = () => {
+      const today = new Date()
+      return today.toISOString().split('T')[0]
     }
 
     const newField: FormField = {
@@ -104,7 +149,15 @@ export default function FormBuilderPage() {
       required: false,
       ...(type === "text" || type === "email" ? { placeholder: "Type here..." } : {}),
       ...(type === "textarea" ? { placeholder: "Share your thoughts..." } : {}),
+      ...(type === "number" ? { placeholder: "Enter number...", min: 0, max: 100, step: 1 } : {}),
+      ...(type === "date" ? { placeholder: getTodayDate() } : {}), // Set today's date as default
       ...(type === "select" || type === "radio" ? { options: ["Option 1 🎯", "Option 2 🚀", "Option 3 ✨"] } : {}),
+      ...(type === "file" ? { accept: "*/*", multiple: false } : {}),
+      ...(type === "image" ? { accept: "image/*", multiple: false } : {}),
+      ...(type === "audio" ? { accept: "audio/*" } : {}),
+      ...(type === "rating" ? { rating_type: "stars", min: 1, max: 5 } : {}),
+      ...(type === "slider" ? { slider_min: 0, slider_max: 100, slider_step: 1 } : {}),
+      ...(type === "imageselection" ? { multiple: true, options: [] } : {}),
     }
     setFormData((prev) => ({
       ...prev,
@@ -494,5 +547,13 @@ export default function FormBuilderPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function FormBuilderPage() {
+  return (
+    <Suspense fallback={<FormBuilderLoading />}>
+      <FormBuilderContent />
+    </Suspense>
   )
 }

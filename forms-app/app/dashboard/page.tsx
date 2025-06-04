@@ -6,7 +6,6 @@ import Link from 'next/link'
 import { getUserForms, getUserAnalytics, refreshUserAnalytics, getFormResponses, deleteForm as deleteFormDB } from '../../lib/database'
 import { Form, UserAnalytics } from '../../lib/supabase'
 import { testSupabaseConnection, checkEnvironmentVariables } from '../../lib/test-connection'
-import { generateFormSlug } from '../../lib/utils'
 
 export default function Dashboard() {
   const { user, isLoaded } = useUser()
@@ -84,10 +83,10 @@ export default function Dashboard() {
   }
 
   const copyShareableLink = (formId: string, formTitle: string) => {
-    const slug = generateFormSlug(formTitle, formId)
-    const link = `${window.location.origin}/forms/${slug}`
-    navigator.clipboard.writeText(link)
-    alert("📋 Shareable link copied to clipboard!")
+    const url = `${window.location.origin}/view?id=${formId}`
+    navigator.clipboard.writeText(url)
+    console.log('📋 Copied shareable link:', url)
+    // You could add a toast notification here
   }
 
   const deleteForm = async (formId: string, formTitle: string) => {
@@ -281,7 +280,7 @@ export default function Dashboard() {
                       </div>
                       <div className="flex flex-col sm:flex-row gap-2 sm:ml-4">
                         <Link
-                          href={`/forms/${generateFormSlug(form.title, form.id)}`}
+                          href={`/view?id=${form.id}`}
                           target="_blank"
                           className="bg-green-100 text-green-700 px-3 py-2 rounded-md hover:bg-green-200 transition-colors text-center text-xs sm:text-sm"
                         >
@@ -300,7 +299,7 @@ export default function Dashboard() {
                           Edit
                         </Link>
                         <Link
-                          href={`/forms/${generateFormSlug(form.title, form.id)}/responses`}
+                          href={`/responses?id=${form.id}`}
                           className="bg-blue-100 text-blue-700 px-3 py-2 rounded-md hover:bg-blue-200 transition-colors text-center text-xs sm:text-sm"
                         >
                           Responses

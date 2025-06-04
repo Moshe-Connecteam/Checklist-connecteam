@@ -1,18 +1,18 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { useParams, useRouter } from 'next/navigation'
+import { useRouter, useParams } from 'next/navigation'
 import Link from 'next/link'
 import { useUser } from '@clerk/nextjs'
-import { getForm, getFormResponses } from '../../../../lib/database'
+import { getUserForm, getFormResponses } from '../../../../lib/database'
 import { Form, FormResponse, FormField } from '../../../../lib/supabase'
 import { ResponseFieldDisplay } from '../../../../components/ResponseFieldDisplay'
 import { generateFormSlug } from '../../../../lib/utils'
 
 export default function FormResponsesPage() {
   const { user, isLoaded } = useUser()
-  const params = useParams()
   const router = useRouter()
+  const params = useParams()
   const slug = params.slug as string
   
   const [form, setForm] = useState<Form | null>(null)
@@ -23,15 +23,23 @@ export default function FormResponsesPage() {
   const [expandedResponses, setExpandedResponses] = useState<Set<string>>(new Set())
 
   useEffect(() => {
+    if (!isLoaded || !user) {
+      setIsLoading(false)
+      return
+    }
+
     const loadFormAndResponses = async () => {
-      if (!user || !isLoaded) return
-      
       try {
-        const formData = await getForm(slug)
+        setIsLoading(true)
         
-        // Verify user owns this form
-        if (formData.user_id !== user.id) {
-          setError('You do not have permission to view these responses')
+        console.log('🔍 Loading form with slug:', slug)
+        console.log('👤 Current user ID:', user.id)
+        
+        // Use getUserForm for better performance
+        const formData = await getUserForm(slug, user.id)
+        
+        if (!formData) {
+          setError('Form not found')
           return
         }
         
@@ -42,7 +50,7 @@ export default function FormResponsesPage() {
         setResponses(responsesData)
       } catch (err) {
         console.error('Error loading form and responses:', err)
-        setError('Failed to load responses')
+        setError('Failed to load responses: ' + (err instanceof Error ? err.message : 'Unknown error'))
       } finally {
         setIsLoading(false)
       }

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, Suspense } from "react"
 import { useUser } from "@clerk/nextjs"
 import { useRouter, useSearchParams } from "next/navigation"
 import { Button } from "@/components/ui/button"
@@ -38,7 +38,22 @@ interface FormData {
   fields: FormField[]
 }
 
-export default function FormBuilderPage() {
+// Loading component to show while suspense is loading
+function FormBuilderLoading() {
+  return (
+    <div className="container mx-auto px-4 py-8">
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Loading form builder...</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+// Actual form builder component that uses useSearchParams
+function FormBuilderContent() {
   const { user, isLoaded } = useUser()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -959,5 +974,13 @@ export default function FormBuilderPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function FormBuilderPage() {
+  return (
+    <Suspense fallback={<FormBuilderLoading />}>
+      <FormBuilderContent />
+    </Suspense>
   )
 }

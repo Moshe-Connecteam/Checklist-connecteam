@@ -1,51 +1,24 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { useParams } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { useUser } from '@clerk/nextjs'
-import { getForm, submitFormResponse, uploadFile } from '../../../lib/database'
-import { AdvancedFormField } from '../../../components/AdvancedFormFields'
-import type { Form, FormField } from '../../../lib/supabase'
-import { Button } from '../../../components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../../components/ui/card'
+import { getForm, submitFormResponse, uploadFile } from '../../lib/database'
+import { AdvancedFormField } from '../../components/AdvancedFormFields'
+import type { Form, FormField } from '../../lib/supabase'
+import { Button } from '../../components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '../../components/ui/card'
 import { ArrowLeft, Send, CheckCircle } from 'lucide-react'
 import Link from 'next/link'
-import { generateFormSlug } from '../../../lib/utils'
 import Head from 'next/head'
 
-export default function FormPage() {
-  const params = useParams()
+function FormViewContent() {
+  const searchParams = useSearchParams()
   const { user } = useUser()
   
-  // Extract slug from URL directly to handle Next.js 15 routing issues
-  const [actualSlug, setActualSlug] = useState<string>('')
+  // Get form identifier from query params
+  const formId = searchParams.get('id') || searchParams.get('form') || ''
   
-  useEffect(() => {
-    // Extract slug from current URL
-    if (typeof window !== 'undefined') {
-      const path = window.location.pathname
-      const parts = path.split('/').filter(part => part.length > 0) // Remove empty parts
-      
-      // Find the slug part (should be after 'forms')
-      const formsIndex = parts.indexOf('forms')
-      if (formsIndex !== -1 && formsIndex + 1 < parts.length) {
-        const slugFromUrl = parts[formsIndex + 1]
-        
-        console.log('🌐 URL path:', path)
-        console.log('🌐 URL parts:', parts)
-        console.log('🌐 Forms index:', formsIndex)
-        console.log('🌐 Extracted slug from URL:', slugFromUrl)
-        
-        setActualSlug(slugFromUrl)
-      } else {
-        console.warn('⚠️ Could not find slug in URL path:', path)
-      }
-    }
-  }, [])
-  
-  // Use params.slug as fallback
-  const slug = actualSlug || (params.slug as string)
-
   const [form, setForm] = useState<Form | null>(null)
   const [isLoading, setIsLoading] = useState(true)
   const [submitting, setSubmitting] = useState(false)
@@ -58,29 +31,14 @@ export default function FormPage() {
     const loadForm = async () => {
       try {
         setIsLoading(true)
-        console.log('🔍 Loading form with slug:', slug)
-        console.log('🔍 Slug type:', typeof slug)
-        console.log('🔍 Slug length:', slug?.length)
-        console.log('🔍 Params object:', params)
+        console.log('🔍 Loading form with ID:', formId)
         
-        if (!slug || slug === '[slug]' || slug === '%5Bslug%5D') {
-          console.error('❌ Invalid slug received:', slug)
-          setError('Invalid form URL')
+        if (!formId) {
+          setError('No form ID provided')
           return
         }
         
-        // Check if slug is URL-encoded and decode it
-        let actualSlug = slug
-        if (slug.includes('%')) {
-          try {
-            actualSlug = decodeURIComponent(slug)
-            console.log('🔄 Decoded slug from:', slug, 'to:', actualSlug)
-          } catch (e) {
-            console.error('❌ Failed to decode slug:', e)
-          }
-        }
-        
-        const formData = await getForm(actualSlug)
+        const formData = await getForm(formId)
         console.log('✅ Form loaded:', formData.title, formData.id)
         setForm(formData)
         
@@ -93,17 +51,6 @@ export default function FormPage() {
           metaDescription.setAttribute('content', formData.description || `Fill out ${formData.title} form`)
         }
         
-        // Update og tags for better social sharing
-        const ogTitle = document.querySelector('meta[property="og:title"]')
-        if (ogTitle) {
-          ogTitle.setAttribute('content', formData.title)
-        }
-        
-        const ogDescription = document.querySelector('meta[property="og:description"]')
-        if (ogDescription) {
-          ogDescription.setAttribute('content', formData.description || `Fill out ${formData.title} form`)
-        }
-        
       } catch (err) {
         console.error('❌ Error loading form:', err)
         setError('Form not found')
@@ -112,8 +59,10 @@ export default function FormPage() {
       }
     }
 
-    loadForm()
-  }, [slug, actualSlug])
+    if (formId) {
+      loadForm()
+    }
+  }, [formId])
 
   const handleFieldChange = (fieldId: string, value: any) => {
     setResponses(prev => ({
@@ -297,5 +246,20 @@ export default function FormPage() {
         </Card>
       </div>
     </div>
+  )
+}
+
+export default function FormViewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading form...</p>
+        </div>
+      </div>
+    }>
+      <FormViewContent />
+    </Suspense>
   )
 } 

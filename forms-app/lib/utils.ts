@@ -16,26 +16,38 @@ export function generateFormSlug(title: string, id: string): string {
     .replace(/^-+|-+$/g, '') // Remove leading/trailing hyphens
     .substring(0, 50) // Limit length
   
-  // Get first 4 characters of ID
-  const shortId = id.substring(0, 4)
+  // Use full UUID for reliability
+  const fullId = id
   
-  // Combine title slug with short ID
-  const slug = titleSlug ? `${titleSlug}-${shortId}` : `form-${shortId}`
+  // Combine title slug with full ID
+  const slug = titleSlug ? `${titleSlug}-${fullId}` : `form-${fullId}`
   
   return slug
 }
 
 // Extract original ID from slug
 export function extractIdFromSlug(slug: string): string | null {
-  // Extract the last 4 characters after the last hyphen
-  const parts = slug.split('-')
-  const lastPart = parts[parts.length - 1]
+  console.log('🔍 Extracting ID from slug:', slug)
   
-  // Validate it's 4 characters (could be alphanumeric from UUID)
-  if (lastPart && lastPart.length === 4) {
-    return lastPart
+  if (!slug || typeof slug !== 'string') {
+    console.log('❌ Invalid slug type:', typeof slug, slug)
+    return null
   }
   
+  // Split by hyphens and look for a UUID pattern (8-4-4-4-12 characters)
+  const parts = slug.split('-')
+  console.log('🔍 Slug parts:', parts)
+  
+  // Look for UUID pattern: 8-4-4-4-12 characters
+  for (let i = 0; i < parts.length - 4; i++) {
+    const potentialUuid = parts.slice(i, i + 5).join('-')
+    if (isValidUUID(potentialUuid)) {
+      console.log('✅ Extracted full UUID:', potentialUuid)
+      return potentialUuid
+    }
+  }
+  
+  console.log('❌ No valid UUID found in slug')
   return null
 }
 
